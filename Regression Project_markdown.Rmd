@@ -1,0 +1,469 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+
+```{r}
+rm(list=ls())
+### Reading data and deleting NA values
+Cars<-read.csv("Cars_Data.csv",header=TRUE)
+#View(Cars)
+### deleting NA values
+Cars = na.omit(Cars)
+
+#### convert german characters to english
+#summary(Cars)
+Cars$notRepairedDamage = factor(Cars$notRepairedDamage,labels=c("Yes","No"))
+
+
+### replacing year of registration with age of car
+
+Cars$year_current=2016
+Cars$age_of_car=Cars$year_current-Cars$yearOfRegistration
+Cars$yearOfRegistration=NULL
+Cars$year_current=NULL
+#summary(Cars)
+#View(Cars)
+#View(Cars)
+hist(Cars$price,breaks=200)
+
+### adjusting histogram scale
+
+
+
+car4<-subset(Cars, price==500)
+nrow(car4)
+```
+
+```{r}
+### find how Price of car varies with varies with the different numeric variables
+# subsetting data for numeric variables
+data_sub=Cars[,c(4,7,9,14,15)]
+cor_cars=cor(data_sub)
+panel.cor <- function(x, y, digits=2, prefix="", cex.cor, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- abs(cor(x, y))
+    txt <- format(c(r, 0.123456789), digits=digits)[1]
+    txt <- paste(prefix, txt, sep="")
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+#cor(data_sub)
+pairs(price~., data=data_sub,lower.panel=panel.smooth, upper.panel=panel.cor, pch=20, main="Scatter Plot for Price of Cars")
+#View(data_sub)
+#install.packages("corrplot")
+library(corrplot)
+M=cor(data_sub)
+corrplot(M,type="upper")
+```
+Price of cars has a high correlation with Power PS 56% , Price varies inversely with number of kilometeres driven, the price is negatively correlated by 42% with number of kilometres driven. 
+The price Increases with year of reg - more recent cars are more expensive. Varies positively by 11% with duration - the longer the car has been on the web site the more expensive it is. The price of car also varies negatively with age of car by 39%.
+```{r}
+### find how price varies with different brands of car
+#install.packages("ggplot2")
+library(ggplot2)
+brand_price=aggregate(Cars$price, by=list(Cars$brand), FUN=mean)
+brand_price=brand_price[order(brand_price$x),]
+#View(brand_price)
+## Bar plot showing average price of car with each category
+ggplot(data=brand_price,aes(x=Group.1,y=x)) + geom_bar(stat="identity")+theme(axis.text.x=element_text(angle=60, hjust=1)) 
+
+```
+Since we're students are budget is only between $(3000- 7000). ignoring the cheaper cars as they won't long lasting as well.
+```{r}
+
+### subset data 
+#### How does Price of Cars vary with categorical variables
+
+Cars_sub_price=Cars[Cars$price<10000 & Cars$price>3000,]
+#summary(Cars_sub_price)
+boxplot(Cars_sub_price$price~as.factor(Cars_sub_price$brand),main=" Boxplot - Price quote on Ebay with Brand",ylab="Price quote on ebay",las=2)
+#axis(side=2, at=c(0:23))
+
+
+boxplot(Cars_sub_price$price ~as.factor(Cars_sub_price$vehicleType),main=" Boxplot - Price with Vehicle Type",xlab="Car Type",ylab="Price quote on ebay",las=2)
+
+
+boxplot(Cars_sub_price$price ~as.factor(Cars_sub_price$gearbox),main=" Boxplot - Price on ebay with Gear box",xlab="Gear Box",ylab="Price quote on ebay")
+
+boxplot(Cars_sub_price$price ~as.factor(Cars_sub_price$fuelType),main=" Boxplot - Price on ebay with Fuel Type of car",xlab="Fuel Type",ylab="Price quote on ebay")
+
+boxplot(Cars_sub_price$price ~as.factor(Cars_sub_price$notRepairedDamage),main=" Boxplot - Price on ebay with whether on not the car is damaged",xlab="Damaged or not",ylab="Price quote on ebay")
+
+                    ##### Boxplot with full data##############
+
+
+boxplot(Cars$price~as.factor(Cars$brand),main=" Boxplot - Price quote on Ebay with Brand",ylab="Price quote on ebay",las=2)
+#axis(side=2, at=c(0:23))
+
+
+boxplot(Cars$price ~as.factor(Cars$vehicleType),main=" Boxplot - Price with Vehicle Type",xlab="Car Type",ylab="Price quote on ebay",las=2)
+
+
+boxplot(Cars$price ~as.factor(Cars$gearbox),main=" Boxplot - Price on ebay with Gear box",xlab="Gear Box",ylab="Price quote on ebay")
+
+boxplot(Cars$price ~as.factor(Cars$fuelType),main=" Boxplot - Price on ebay with Fuel Type of car",xlab="Fuel Type",ylab="Price quote on ebay")
+
+boxplot(Cars$price ~as.factor(Cars$notRepairedDamage),main=" Boxplot - Price on ebay with whether on not the car is damaged",xlab="Damaged or not",ylab="Price quote on ebay")
+
+```
+```{r}
+### fastest selling car brands
+summary(Cars_sub_price)
+plot(Cars_sub_price$brand,Cars_sub_price$duration, ylim=c(0, 30),las=2)
+#axis(side=2, at=c(0:200))
+```
+```{r}
+### Anova model to compare means of the 2 groups - one with damage and the other without
+
+price=Cars$price
+damage=Cars$notRepairedDamage
+brand=Cars$brand
+fuel_type=Cars$fuelType
+
+
+hist(price,xlab=" ", ylab = "",main="Price Distribution Histogram ")
+hist(log(price),xlab=" ", ylab = "",main="Log Price Distribution Histogram ")
+
+AOV_damage = aov(log(price)~ damage)
+summary(AOV_damage)
+AOV_brand=aov(log(price)~brand)
+summary(AOV_brand)
+AOV_fuel=aov(log(price)~fuel_type)
+summary(AOV_fuel)
+
+
+
+```
+
+As we can see that the p-value is very small and is significant at the 99% confidence interval.Hence we can reject the Null Hypothesis that that the means of car prices that are damaged and car prices that are not damaged are the same. Hence the means of the 2 groups are statistically significantly different.
+```{r}
+#### Tukeys Pairwise analysis to 
+pairwise_dam=TukeyHSD(AOV_damage)
+pairwise_brand=TukeyHSD(AOV_brand)
+pairwise_fuel=TukeyHSD(AOV_fuel)
+
+#### check if which brands prices are not significantly differnt from each other
+pairwise_brand$brand[pairwise_brand$brand[,4]>0.05,]
+
+
+
+```
+
+While choosing between 2 brands we can see that the above list shows us brands where the prices are NOT significantly different from each other. Therefore, given a car of same age, damage type I will not select for example a volvo over a Suzuki as their prices are NOT significantly different from each other. I can use other parameters to select between the 2 cars.
+```{r}
+
+### checking prices of which fuel types are significantly different from each other
+pairwise_fuel=TukeyHSD(AOV_fuel)
+pairwise_fuel
+
+#### check if which brands prices are not significantly differnt from each other
+pairwise_fuel$fuel_type[pairwise_fuel$fuel_type[,4]>0.05,]
+```
+As we can see the prices of the above fuel prices are not significantly different from each other for example - I will not choose a benzin car over a andere car given all other variables constant.
+```{r}
+dur=Cars$duration
+hist(log(dur+1))
+AOV_dur_brand=aov(log(dur+1)~brand)
+summary(AOV_dur_brand)
+## to check if diff brands have diff means
+pairwise_dur=TukeyHSD(AOV_dur_brand)
+
+
+#### check if which brands duration is not significantly differnt from each other
+pairwise_dur$brand[pairwise_dur$brand[,4]>0.05,]
+```
+Even though the p-value of the anova test reveals the the mean duration of atleast one group is statistically diff from the other, after Tukeys pairwise analysis we can see that the means of most groups are not statistically significantly diff from the  other. we can use this to decide which car to but based on its popularity (sold faster) keeping all other factioirs constant
+```{r}
+#### Linear Regression with Price
+#colnames(Cars)
+car_sub=Cars[,c(4,5,6,7,8,9,11,12,13,14,15)]
+model=lm(price~.,data=car_sub)
+summary(model)
+```
+R square 63.5% - remove outliers to fit model better
+```{r}
+
+#### use cooks distance to identify outliers
+cook = cooks.distance(model)
+par(mfrow=c(2,2))
+## Check outliers
+#influencePlot(model_1)
+plot(cook,type="h",lwd=3,col="red", ylab = "Cook's Distance")
+length(cook[cook>1])
+nrow(Cars)
+
+#### Residual Plot
+resid=model$residuals
+fit=model$fitted.values
+par(mfrow =c(2,2))
+plot(fit,resid,xlab="fits",ylab="Residals")
+abline(0,0,col="red")
+
+### qq norm plot
+
+#### QQ norm plot
+qqnorm(resid)
+qqline(resid,col="blue")
+hist(resid, xlab="Residuals", main= "Histogram of Residuals")
+
+
+
+```
+Constant variation assumption holds. However the normality assumption is heavily violated.
+```{r}
+#### test 
+
+### using log to plot
+colnames(Cars)
+car_sub=Cars[,c(4,5,6,7,8,9,11,12,13,14,15)]
+model_1=lm(log(price)~.,data=car_sub)
+summary(model_1)
+
+
+#### resid vs fitted
+resid_1=model_1$residuals
+fit_1=model_1$fitted.values
+par(mfrow =c(2,2))
+plot(fit_1,resid_1,xlab="fits",ylab="Residals")
+abline(0,0,col="red")
+
+### qqnorm
+qqnorm(resid_1)
+qqline(resid_1,col="blue")
+hist(resid_1, xlab="Residuals", main= "Histogram of Residuals")
+
+
+```
+taking log fixes the normality a bit but messes up with the constant variance - so we try box cox
+```{r}
+
+#### test 
+
+#### Using Box Cox Transformation to fix the non constant variance assumption
+library(MASS)
+# run the box-cox transformation
+bc <- boxcox(model)
+
+(lambda <- bc$x[which.max(bc$y)])
+lambda
+#[1] 0.1818182
+
+
+
+
+# re-run with transformation
+colnames(Cars)
+m_new = lm(((price^lambda-1)/lambda) ~ .,data=car_sub)
+summary(m_new)
+
+# resid plot
+resid_3=m_new$residuals
+fit_3=m_new$fitted.values
+par(mfrow =c(2,2))
+plot(fit_3,resid_3,xlab="fits",ylab="Residals")
+abline(0,0,col="red")
+
+### qqnorm
+qqnorm(resid_3)
+qqline(resid_3,col="blue")
+hist(resid_3, xlab="Residuals", main= "Histogram of Residuals")
+
+
+
+
+```
+BOX cox also messes up with the constant variance and does not do much to fix the normality
+```{r}
+#### use cooks distance to identify outliers
+cook = cooks.distance(model)
+par(mfrow=c(2,2))
+## Check outliers
+#influencePlot(model_1)
+plot(cook,type="h",lwd=3,col="red", ylab = "Cook's Distance")
+length(cook[cook>4/nrow(Cars)])
+### removing outliers based on cooks distance
+Cars_rem_outliers=Cars[-as.integer(row.names(as.data.frame(cook[cook>4/nrow(Cars)]))),]
+
+#nrow(Cars)
+```
+Using cooks plot we get 6766 outliers, hence we subset the data and run the model again.
+```{r}
+### test 
+#Cars_sub_price=Cars[Cars$price<10000 & Cars$price>3000,]
+### since even box cox is not helping we subset out data by price and run the model again
+colnames(Cars_sub_price)
+car_sub=Cars_rem_outliers[,c(4,5,6,7,8,9,11,12,13,14,15)]
+model_4=lm(price~.,data=car_sub)
+summary(model_4)
+
+### residual vs fitted
+resid_4=model_4$residuals
+fit_4=model_4$fitted.values
+par(mfrow =c(2,2))
+plot(fit_4,resid_4,xlab="fits",ylab="Residals")
+abline(0,0,col="red")
+
+
+### qqnorm
+qqnorm(resid_4)
+qqline(resid_4,col="blue")
+hist(resid_4,breaks=100, xlab="Residuals", main= "Histogram of Residuals")
+
+
+```
+This is a good model with r square of 79% and constant variance and normality is better than before - exploring further.
+```{r}
+### test 
+
+Cars_sub_price=Cars_rem_outliers[Cars_rem_outliers$price<8900 & Cars_rem_outliers$price>1699,]
+### since even box cox is not helping we subset out data by price and run the model again
+car_sub_1=Cars_sub_price[,c(4,5,6,7,8,9,11,12,13,14,15)]
+model_5=lm(price~.,data=car_sub_1)
+#summary(model_5)
+
+### residual vs fitted
+resid_5=model_5$residuals
+fit_5=model_5$fitted.values
+par(mfrow =c(2,2))
+plot(fit_5,resid_5,xlab="fits",ylab="Residals")
+abline(0,0,col="red")
+
+
+### qqnorm
+qqnorm(resid_5)
+qqline(resid_5,col="blue")
+hist(resid_5,breaks=100, xlab="Residuals", main= "Histogram of Residuals")
+#hist(log(car_sub_1$price))
+#summary(car_sub_1)
+
+
+```
+Subsetting the data further ruins our constant variance assumption. we stick to the previous model.
+
+
+```{r}
+#### Using Box Cox Transformation to fix the non constant variance assumption
+library(MASS)
+# run the box-cox transformation
+bc <- boxcox(model_4)
+
+(lambda <- bc$x[which.max(bc$y)])
+lambda
+#[1] 0.1818182
+
+
+
+
+# re-run with transformation
+colnames(car_sub)
+m_new = lm((price^lambda-1)/lambda ~ vehicleType+gearbox+powerPS+kilometer+fuelType+brand+notRepairedDamage+duration+
+             age_of_car,data=car_sub)
+summary(m_new)
+
+# resid plot
+resid_3=m_new$residuals
+fit_3=m_new$fitted.values
+par(mfrow =c(2,2))
+plot(fit_3,resid_3,xlab="fits",ylab="Residals")
+abline(0,0,col="red")
+
+### qqnorm
+qqnorm(resid_3)
+qqline(resid_3,col="blue")
+hist(resid_3, breaks=100, xlab="Residuals", main= "Histogram of Residuals")
+```
+The best model is (above) - removed outliers (using cooks) - and box cox (to fix normality). Subsetting ruins our variance assumption so we stick to this model even though the assumptions are slightly violated. We get a good r square of 84%.
+
+
+```{r}
+# re-run with transformation
+#install.packages("visreg")
+library(visreg)
+colnames(car_sub)
+m_new_1 = lm((price^lambda-1)/lambda ~vehicleType+gearbox+powerPS+kilometer+fuelType+brand+notRepairedDamage+duration+
+             age_of_car+age_of_car*kilometer+age_of_car*fuelType+age_of_car*vehicleType+age_of_car*powerPS+duration*powerPS+duration*kilometer+duration*brand+duration*notRepairedDamage,data=car_sub)
+summary(m_new_1)
+
+
+###### linearity
+visreg(m_new_1)
+
+##
+
+
+```
+
+```{r}
+#### model seclection
+### stepwise to select best model
+#back.model = step(m_new_1, scope = list(lower=m_new, upper = m_new_1), direction = "backward")
+#summary(back.model) 
+
+### lasso
+library(glmnet)
+formula <- as.formula((price^lambda-1)/lambda ~vehicleType+gearbox+powerPS+kilometer+fuelType+brand+notRepairedDamage+duration+
+             age_of_car+age_of_car*kilometer+age_of_car*fuelType+age_of_car*vehicleType+age_of_car*powerPS+duration*powerPS+duration*kilometer+duration*brand+duration*notRepairedDamage)
+X_pred <- model.matrix(formula, car_sub)
+lassomodel.cv=cv.glmnet(X_pred,(car_sub$price^lambda-1)/lambda,alpha=1,nfolds=10)
+coef(lassomodel.cv,s=lassomodel.cv$lambda.min)
+lassomodel.cv$lambda.min
+
+
+library(gglasso)
+
+
+
+
+Group_lasso=cv.gglasso(X_pred, (car_sub$price^lambda-1)/lambda,group=NULL,loss="ls",nlambda=100)
+(coef(Group_lasso,s=Group_lasso$lambda.min)>0)
+Group_lasso$lambda.min
+
+
+
+```
+
+
+
+
+```{r}
+###### Create Word Cloud Plot in R
+
+###Shows which are the top brands of cars in our analysis
+#install.packages("dplyr")
+#install.packages("wordcloud")
+library(dplyr)
+library(wordcloud)
+
+#install.packages("tidyr")
+library(tidyr)
+Cars_1=separate(data = Cars, col = name, into = c("left", "right"), sep = "_")
+View(Cars)
+
+
+
+cd2 <- count(Cars_1, left)
+
+#  Project n
+#1       a 2
+#2       b 2
+#3       c 3
+pal2 <- brewer.pal(8,"Dark2")
+wordcloud(words = cd2$left, freq = cd2$n, min.freq = 1,max.words=100,random.order=FALSE, rot.per=.15, colors=pal2)
+```
+
+```{r}
+
+
+
+```
+
+
+
+
